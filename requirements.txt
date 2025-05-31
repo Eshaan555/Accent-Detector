@@ -1,7 +1,7 @@
 streamlit
 yt-dlp
 ffmpeg-python
-openai-whisper
+whisper
 torch
 torchaudio
 librosa
