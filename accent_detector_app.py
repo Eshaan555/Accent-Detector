@@ -1,5 +1,5 @@
 # accent_detector_app.py
-# Enhanced version using faster-whisper for better compatibility
+# Version without Whisper using basic speech recognition
 
 import os
 import sys
@@ -7,26 +7,17 @@ import warnings
 
 # Suppress warnings and configure environment
 warnings.filterwarnings("ignore")
-os.environ['TORCH_LOGS'] = '0'
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-
-# Handle torch dynamo configuration safely
-try:
-    import torch
-    if hasattr(torch, '_dynamo'):
-        torch._dynamo.config.suppress_errors = True
-except Exception:
-    pass
 
 import streamlit as st
 import tempfile
 import subprocess
 import yt_dlp
-from faster_whisper import WhisperModel
 import librosa
 import numpy as np
 import shutil
 from pathlib import Path
+import speech_recognition as sr
+from pydub import AudioSegment
 
 # Configure Streamlit page
 st.set_page_config(
@@ -34,16 +25,6 @@ st.set_page_config(
     page_icon="🎙️",
     layout="centered"
 )
-
-@st.cache_resource
-def load_whisper_model():
-    """Load Faster Whisper model with caching"""
-    try:
-        # Use CPU for better compatibility in cloud deployments
-        return WhisperModel("base", device="cpu", compute_type="int8")
-    except Exception as e:
-        st.error(f"Failed to load Whisper model: {e}")
-        return None
 
 def check_dependencies():
     """Check if required system dependencies are available"""
@@ -136,17 +117,35 @@ def extract_audio(video_path, duration_limit=60):
     except Exception as e:
         raise Exception(f"Failed to extract audio: {e}")
 
-def transcribe_audio(model, audio_path):
-    """Transcribe audio using Faster Whisper"""
+def transcribe_audio_basic(audio_path):
+    """Transcribe audio using basic speech recognition"""
     try:
-        segments, info = model.transcribe(audio_path, beam_size=5)
+        r = sr.Recognizer()
         
-        # Combine all segments into one transcript
-        transcript = ""
-        for segment in segments:
-            transcript += segment.text + " "
+        # Convert to proper format for speech recognition
+        audio = AudioSegment.from_wav(audio_path)
+        audio = audio.set_frame_rate(16000).set_channels(1)
         
-        return transcript.strip()
+        # Save temporary file
+        temp_path = audio_path.replace('.wav', '_temp.wav')
+        audio.export(temp_path, format="wav")
+        
+        with sr.AudioFile(temp_path) as source:
+            audio_data = r.record(source, duration=30)  # Limit to 30 seconds
+        
+        # Try Google's free speech recognition
+        try:
+            transcript = r.recognize_google(audio_data)
+            return transcript
+        except sr.UnknownValueError:
+            return "Could not understand audio"
+        except sr.RequestError as e:
+            return f"Speech recognition error: {e}"
+        finally:
+            # Cleanup temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
     except Exception as e:
         st.error(f"Transcription failed: {e}")
         return "Transcription failed"
@@ -172,15 +171,9 @@ def main():
         st.info("Please ensure FFmpeg is installed on the system.")
         return
     
-    # Load Whisper model
-    model = load_whisper_model()
-    if model is None:
-        st.error("Failed to load the Whisper model. Please try refreshing the page.")
-        return
-    
     # UI
     st.title("🎙️ English Accent Detector")
-    st.markdown("Analyze English accents from video URLs using AI-powered speech recognition.")
+    st.markdown("Analyze English accents from video URLs using speech recognition.")
     
     # Input section
     st.subheader("Video Input")
@@ -199,10 +192,9 @@ def main():
         - Audio analysis uses first 60 seconds only
         - Requires clear English speech
         - Best results with single speaker
+        - Uses Google Speech Recognition (requires internet)
         
         **Note:** This is a demonstration app with a placeholder accent classifier.
-        
-        **Updates:** Now using Faster-Whisper for improved performance and compatibility.
         """)
     
     # Analysis button and processing
@@ -230,7 +222,7 @@ def main():
             
             # Transcribe
             with st.spinner("📝 Transcribing speech..."):
-                transcript = transcribe_audio(model, audio_path)
+                transcript = transcribe_audio_basic(audio_path)
                 st.success("Speech transcribed successfully!")
             
             # Classify accent
@@ -248,7 +240,7 @@ def main():
                 st.metric("Confidence Score", f"{confidence}%")
             
             st.subheader("📝 Transcript")
-            if transcript and transcript.strip() and transcript != "Transcription failed":
+            if transcript and transcript.strip() and "failed" not in transcript.lower():
                 st.info(transcript)
             else:
                 st.warning("No speech detected or transcription failed.")
