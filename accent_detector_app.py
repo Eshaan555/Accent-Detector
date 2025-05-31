@@ -1,5 +1,5 @@
 # accent_detector_app.py
-# Enhanced version with better error handling and deployment compatibility
+# Enhanced version using faster-whisper for better compatibility
 
 import os
 import sys
@@ -22,7 +22,7 @@ import streamlit as st
 import tempfile
 import subprocess
 import yt_dlp
-import whisper
+from faster_whisper import WhisperModel
 import librosa
 import numpy as np
 import shutil
@@ -37,9 +37,10 @@ st.set_page_config(
 
 @st.cache_resource
 def load_whisper_model():
-    """Load Whisper model with caching"""
+    """Load Faster Whisper model with caching"""
     try:
-        return whisper.load_model("base")
+        # Use CPU for better compatibility in cloud deployments
+        return WhisperModel("base", device="cpu", compute_type="int8")
     except Exception as e:
         st.error(f"Failed to load Whisper model: {e}")
         return None
@@ -136,10 +137,16 @@ def extract_audio(video_path, duration_limit=60):
         raise Exception(f"Failed to extract audio: {e}")
 
 def transcribe_audio(model, audio_path):
-    """Transcribe audio using Whisper"""
+    """Transcribe audio using Faster Whisper"""
     try:
-        result = model.transcribe(audio_path, fp16=False)
-        return result["text"]
+        segments, info = model.transcribe(audio_path, beam_size=5)
+        
+        # Combine all segments into one transcript
+        transcript = ""
+        for segment in segments:
+            transcript += segment.text + " "
+        
+        return transcript.strip()
     except Exception as e:
         st.error(f"Transcription failed: {e}")
         return "Transcription failed"
@@ -194,6 +201,8 @@ def main():
         - Best results with single speaker
         
         **Note:** This is a demonstration app with a placeholder accent classifier.
+        
+        **Updates:** Now using Faster-Whisper for improved performance and compatibility.
         """)
     
     # Analysis button and processing
@@ -239,7 +248,7 @@ def main():
                 st.metric("Confidence Score", f"{confidence}%")
             
             st.subheader("📝 Transcript")
-            if transcript and transcript.strip():
+            if transcript and transcript.strip() and transcript != "Transcription failed":
                 st.info(transcript)
             else:
                 st.warning("No speech detected or transcription failed.")
