@@ -1,5 +1,17 @@
 # accent_detector_app.py
+# This script is a Streamlit application that detects English accents from video URLs.
+# It uses yt_dlp to download videos, ffmpeg to extract audio, Whisper for transcription,
+import os
+os.environ['TORCH_LOGS'] = '0'
 
+try:
+    import torch
+    if hasattr(torch, '_dynamo'):
+        torch._dynamo.config.suppress_errors = True
+except Exception:
+    pass
+
+# Import necessary libraries
 import streamlit as st
 import os
 import tempfile
