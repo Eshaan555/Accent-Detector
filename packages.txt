@@ -1,4 +1,1 @@
-# packages.txt (CRITICAL - for FFmpeg installation)
 ffmpeg
-
----
