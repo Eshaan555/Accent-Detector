@@ -1,14 +1,15 @@
 # English Accent Detector 🎙️
 
-A Streamlit web application that analyzes English accents from video URLs using OpenAI Whisper for speech recognition and machine learning for accent classification.
+A Streamlit web application that analyzes English accents from video URLs using Google Speech Recognition and machine learning for accent classification.
 
 ## Features
 
 - **Video URL Support**: Works with YouTube URLs and direct MP4 links
-- **Speech Recognition**: Uses OpenAI Whisper for accurate transcription
+- **Speech Recognition**: Uses Google Speech Recognition for accurate transcription
 - **Accent Classification**: Detects American, British, and Australian accents
 - **Confidence Scoring**: Provides percentage confidence in classification
 - **Real-time Processing**: Complete analysis pipeline in a web interface
+- **Cloud-Optimized**: Designed for reliable deployment on Streamlit Cloud
 
 ## Quick Start
 
@@ -16,6 +17,7 @@ A Streamlit web application that analyzes English accents from video URLs using 
 
 - Python 3.8 or higher
 - FFmpeg (for audio extraction)
+- Internet connection (for speech recognition)
 - Git (optional, for cloning)
 
 ### Installation
@@ -67,7 +69,7 @@ A Streamlit web application that analyzes English accents from video URLs using 
 3. **Wait for analysis** - the app will:
    - Download the video
    - Extract audio
-   - Transcribe speech using Whisper
+   - Transcribe speech using Google Speech Recognition
    - Classify the accent
 
 4. **View results**:
@@ -78,14 +80,15 @@ A Streamlit web application that analyzes English accents from video URLs using 
 ## System Requirements
 
 ### Hardware
-- **RAM**: 4GB minimum, 8GB recommended
-- **Storage**: 2GB free space for models and temporary files
-- **CPU**: Multi-core processor recommended for faster processing
+- **RAM**: 2GB minimum, 4GB recommended
+- **Storage**: 1GB free space for temporary files
+- **CPU**: Any modern processor
+- **Internet**: Required for video downloads and speech recognition
 
 ### Software
-- **Python**: 3.8, 3.9, 3.10, or 3.11
+- **Python**: 3.8, 3.9, 3.10, 3.11, or 3.13
 - **FFmpeg**: Latest stable version
-- **Internet**: Required for downloading videos and models
+- **Internet**: Required for downloading videos and Google Speech Recognition
 
 ## Supported Formats
 
@@ -100,20 +103,23 @@ A Streamlit web application that analyzes English accents from video URLs using 
 - English language
 - Single speaker preferred
 - Minimal background noise
+- Good internet connection for transcription
 
 ## Technical Details
 
 ### Components
 - **Streamlit**: Web interface framework
 - **yt-dlp**: Video downloading from URLs
-- **Whisper**: OpenAI's speech recognition model
+- **Google Speech Recognition**: Free speech-to-text service
 - **librosa**: Audio processing and feature extraction
 - **FFmpeg**: Audio format conversion
+- **SpeechRecognition**: Python library for speech recognition
+- **pydub**: Audio manipulation
 
 ### Processing Pipeline
 1. **Download**: Video downloaded using yt-dlp
 2. **Audio Extraction**: FFmpeg converts to 16kHz WAV
-3. **Speech Recognition**: Whisper transcribes audio
+3. **Speech Recognition**: Google API transcribes audio
 4. **Feature Extraction**: MFCC features extracted using librosa
 5. **Classification**: ML model predicts accent type
 6. **Results**: Accent, confidence, and transcript displayed
@@ -131,9 +137,15 @@ A Streamlit web application that analyzes English accents from video URLs using 
 - Install FFmpeg and add to system PATH
 - Restart terminal/command prompt after installation
 
-**"CUDA out of memory"**
-- Use CPU-only mode: `torch.cuda.is_available() = False`
-- Reduce video length or quality
+**"Speech recognition error"**
+- Check internet connection
+- Ensure audio has clear speech
+- Try with a different video with better audio quality
+
+**"Could not understand audio"**
+- Audio quality may be too poor
+- Try videos with clearer speech
+- Ensure minimal background noise
 
 **"Module not found"**
 - Install missing dependencies: `pip install -r requirements.txt`
@@ -145,10 +157,11 @@ A Streamlit web application that analyzes English accents from video URLs using 
 
 ### Performance Tips
 
-1. **Use shorter videos** (under 5 minutes) for faster processing
+1. **Use shorter videos** (under 3 minutes) for faster processing
 2. **Ensure good audio quality** for better transcription
-3. **Close other applications** to free up memory
-4. **Use SSD storage** for faster file operations
+3. **Single speaker videos** work best
+4. **Stable internet connection** for reliable speech recognition
+5. **Close other applications** to free up memory
 
 ## Development
 
@@ -157,8 +170,10 @@ A Streamlit web application that analyzes English accents from video URLs using 
 accent-detector/
 ├── accent_detector_app.py    # Main application
 ├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-└── models/                   # Downloaded models (auto-created)
+├── packages.txt              # System dependencies
+├── config.toml              # Streamlit configuration
+├── python-version.txt       # Python version specification
+└── README.md                # This file
 ```
 
 ### Extending the Classifier
@@ -202,21 +217,45 @@ To support additional accents:
 ### Local Deployment
 The app runs locally by default on `http://localhost:8501`
 
-### Cloud Deployment
+### Streamlit Community Cloud
 
-**Streamlit Community Cloud:**
+**Automatic Deployment:**
 1. Push code to GitHub
 2. Connect at https://share.streamlit.io
 3. Deploy automatically
 
+**Required Files:**
+- `requirements.txt` - Python dependencies
+- `packages.txt` - System dependencies (ffmpeg)
+- `config.toml` - Streamlit configuration
+- `python-version.txt` - Python version specification
+
+### Other Platforms
+
 **Heroku:**
-1. Add `Procfile`: `web: streamlit run accent_detector_app.py --server.port=$PORT --server.address=0.0.0.0`
-2. Add `system.txt`: `ffmpeg`
-3. Deploy via Heroku CLI
+```
+# Add to requirements.txt:
+streamlit>=1.28.0,<1.46.0
+yt-dlp>=2023.9.0
+librosa>=0.10.0
+numpy>=1.24.0,<2.0.0
+joblib>=1.3.0
+ffmpeg-python>=0.2.0
+soundfile>=0.12.0
+scipy>=1.10.0
+SpeechRecognition>=3.10.0
+pydub>=0.25.0
+
+# Procfile:
+web: streamlit run accent_detector_app.py --server.port=$PORT --server.address=0.0.0.0
+
+# Aptfile:
+ffmpeg
+```
 
 **Docker:**
 ```dockerfile
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 RUN apt-get update && apt-get install -y ffmpeg
 
@@ -229,6 +268,21 @@ COPY accent_detector_app.py .
 EXPOSE 8501
 
 CMD ["streamlit", "run", "accent_detector_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+## Current Dependencies
+
+```txt
+streamlit>=1.28.0,<1.46.0
+yt-dlp>=2023.9.0
+librosa>=0.10.0
+numpy>=1.24.0,<2.0.0
+joblib>=1.3.0
+ffmpeg-python>=0.2.0
+soundfile>=0.12.0
+scipy>=1.10.0
+SpeechRecognition>=3.10.0
+pydub>=0.25.0
 ```
 
 ## License
@@ -249,81 +303,36 @@ For issues and questions:
 - Check the troubleshooting section
 - Review error messages carefully
 - Ensure all dependencies are installed correctly
+- Verify internet connection for speech recognition
 
 ## Acknowledgments
 
-- OpenAI for the Whisper speech recognition model
+- Google for the Speech Recognition API
 - The librosa team for audio processing tools
 - Streamlit for the web framework
 - yt-dlp for video downloading capabilities
+- The SpeechRecognition library maintainers
 
 ---
 
-**Note**: This is a demonstration application. For production use, consider implementing proper error handling, user authentication, rate limiting, and a robust accent classification model trained on comprehensive datasets.
+**Note**: This is a demonstration application using Google's free speech recognition service. For production use, consider implementing proper error handling, user authentication, rate limiting, and a robust accent classification model trained on comprehensive datasets.
+
+## Architecture Differences
+
+This implementation differs from typical Whisper-based solutions:
+
+- **Lighter Dependencies**: No PyTorch or heavy ML frameworks required
+- **Cloud Optimized**: Designed specifically for Streamlit Cloud compatibility
+- **Internet Dependent**: Requires internet connection for speech recognition
+- **Free Service**: Uses Google's free speech recognition API
+- **Faster Startup**: Quicker initial loading without large model downloads
 
 ---
 
-## requirements.txt
+## Live Demo
 
-```txt
-streamlit>=1.28.0
-yt-dlp>=2023.9.0
-torch>=2.0.0
-openai-whisper>=20231117
-librosa>=0.10.0
-numpy>=1.24.0
-joblib>=1.3.0
-```
+Visit the deployed application: https://accent-detector-kpahfmxippbaleojwqjv8l.streamlit.app/
 
 ---
 
-## Additional Files for Deployment
-
-### Procfile (for Heroku)
-```
-web: streamlit run accent_detector_app.py --server.port=$PORT --server.address=0.0.0.0
-```
-
-### runtime.txt (for Heroku)
-```
-python-3.9.18
-```
-
-### Aptfile (for Heroku - system dependencies)
-```
-ffmpeg
-```
-
-### .streamlit/config.toml
-```toml
-[server]
-headless = true
-port = 8501
-enableCORS = false
-
-[browser]
-gatherUsageStats = false
-```
-
-### setup.sh (for Streamlit Cloud)
-```bash
-#!/bin/bash
-
-# Install system dependencies
-apt-get update
-apt-get install -y ffmpeg
-
-# Create .streamlit directory
-mkdir -p ~/.streamlit/
-
-# Setup Streamlit config
-echo "\
-[server]\n\
-headless = true\n\
-port = \$PORT\n\
-enableCORS = false\n\
-\n\
-[browser]\n\
-gatherUsageStats = false\n\
-" > ~/.streamlit/config.toml
-```
+**Last Updated**: May 2025
